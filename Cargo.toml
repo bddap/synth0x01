@@ -1,0 +1,10 @@
+[package]
+name = "synth0x01"
+version = "0.1.0"
+authors = ["Andrew Dirksen <andrew@dirksen.com>"]
+edition = "2018"
+
+[dependencies]
+wav = "0.5.0"
+plotters = { version = "0.3.0", optional = true }
+rand = { version = "0.8.3", features = ["small_rng"] }
