@@ -23,7 +23,7 @@ impl Song {
         }
     }
 
-    pub fn add_note(&mut self, note: Note) {
+    pub fn add_note<T: Fn(f64) -> f64>(&mut self, note: Note<T>) {
         let start = note.time;
         let sample_start = (self.sample_rate as f64 * start) as usize;
         let end = note.time + note.dur;

@@ -42,3 +42,17 @@ pub fn plot(samples: impl Iterator<Item = f64> + Clone) {
 
     println!("dumped!");
 }
+
+#[test]
+fn tmap() {
+    for (x, inmin, inmax, outmin, outmax, out) in &[
+        (0.0, 0.0, 1.0, 0.0, 1.0, 0.0),
+        (1.0, 0.0, 1.0, 0.0, 1.0, 1.0),
+        (0.5, 0.0, 1.0, 0.0, 1.0, 0.5),
+        (0.5, 0.0, 1.0, 0.0, -1.0, -0.5),
+        (0.5, 0.0, 1.0, 1.0, -1.0, 0.0),
+        (1.5, 1.0, 2.0, 10.0, 20.0, 15.0),
+    ] {
+        assert_eq!(map(*x, *inmin, *inmax, *outmin, *outmax), *out);
+    }
+}
