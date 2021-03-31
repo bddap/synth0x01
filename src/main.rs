@@ -2,13 +2,6 @@ mod note;
 mod song;
 mod util;
 
-// TODO: Try transforming all samples in song by Hyperbolic Tangent
-//       HT will bound signal to (-1,1) and may sound cool.
-//       It may also allow for many notes to be played at the same time
-//       without clipping.
-//       Also try some veriation of sigmoid as it seems similar.
-//       I'm pretty sure `sig(x * 2) * 2 - 1 = tanh(x)`. 
-
 use crate::util::map;
 use note::Note;
 // use rand::Rng;
@@ -21,57 +14,12 @@ fn main() {
     let c = &[6, 8, 10];
     let d = &[4, 8, 14];
     let e = &[5, 8, 15];
-    let fraxss: &[&[usize]] = &[
-        a,
-        b,
-        c,
-        d,
-        e,
-        b,
-        b,
-        d,
-        e,
-        b,
-        b,
-        &[3, 4, 5],
-        &[2, 3, 4, 5],
-        &[],
-        &[2, 3, 4, 5],
-        &[3, 4, 5],
-        &[3, 4, 5, 6],
-        b,
-        e,
-        d,
-        e,
-        b,
-        b,
-        d,
-        e,
-        b,
-        b,
-        e,
-        b,
-        a,
-        d,
-        e,
-        b,
-        b,
-        d,
-        e,
-        b,
-        b,
-        &[2, 3, 4],
-        &[20, 30, 40],
-        &[20 / 2, 30 / 2, 40 / 2],
-        &[20 / 3, 30 / 4, 40 / 5],
-        &[20 / 4, 30 / 5, 40 / 6],
-        &[20 / 5, 30 / 7, 10],
-    ];
+    let fraxss: Vec<Vec<usize>> = (1..8usize).map(|i| vec![i.pow(2)]).collect();
 
     // let mut rng = rand::rngs::SmallRng::from_seed([0xff; 32]);
 
-    let section_len = 20.;
-    let sections = 32;
+    let section_len = 0.2;
+    let sections = 100;
     let songlen = section_len * sections as f64;
     let mut song = Song::new(songlen);
 
@@ -99,8 +47,7 @@ fn main() {
                 sectionstart,
                 sectionend - 0.00001,
             );
-            dbg!(time / songlen);
-            for frac in *fraxs {
+            for frac in fraxs.iter() {
                 let note = Note {
                     time,
                     dur,
@@ -108,11 +55,7 @@ fn main() {
                     decay_start,
                     freq: base_freq * (notes_in_octave / *frac as f64),
                     amp: 0.2,
-                    timbre: note::cray(note::sin, |s, t| {
-                        let base = ((t / 8.).sin() + 2.) * 2.;
-                        let a = s.abs().powf(base);
-                        a * s.signum()
-                    }),
+                    timbre: note::cral,
                 };
                 song.add_note(note);
             }

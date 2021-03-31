@@ -39,3 +39,10 @@ pub fn modwav(f: impl Fn(f64) -> f64, modr: impl Fn(f64) -> f64) -> impl Fn(f64)
 pub fn cray(f: impl Fn(f64) -> f64, modr: impl Fn(f64, f64) -> f64) -> impl Fn(f64) -> f64 {
     move |t| modr(f(t), t)
 }
+
+pub fn cral(t: f64) -> f64 {
+    let s = sin(t);
+    let base = ((t / 8.).sin() + 2.) * 2.;
+    let a = s.abs().powf(base);
+    a * s.signum()
+}

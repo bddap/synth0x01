@@ -47,7 +47,7 @@ impl Song {
         let bd = wav::BitDepth::Sixteen(
             self.samples
                 .iter()
-                .map(|f| (i16::max_value() as f64 * f) as i16)
+                .map(|f| (i16::max_value() as f64 * f.tanh()) as i16)
                 .collect(),
         );
         let h = wav::Header::new(1, 1, self.sample_rate as u32, 16);
@@ -56,7 +56,7 @@ impl Song {
         std::io::stdout().write_all(&out).unwrap();
     }
 
-    pub fn samples(&self) -> &[f64] {
-        &self.samples
+    pub fn samples_mut(&mut self) -> &mut [f64] {
+        &mut self.samples
     }
 }
