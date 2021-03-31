@@ -2,20 +2,20 @@ mod note;
 mod song;
 mod util;
 
+// TODO: Try transforming all samples in song by Hyperbolic Tangent
+//       HT will bound signal to (-1,1) and may sound cool.
+//       It may also allow for many notes to be played at the same time
+//       without clipping.
+//       Also try some veriation of sigmoid as it seems similar.
+//       I'm pretty sure `sig(x * 2) * 2 - 1 = tanh(x)`. 
+
 use crate::util::map;
 use note::Note;
+// use rand::Rng;
+// use rand::SeedableRng;
 use song::Song;
 
 fn main() {
-    let songlen = 40.;
-    let mut song = Song::new(songlen);
-
-    let attack_end = 0.01;
-    let decay_start = 0.99;
-    let base_freq = 261.0;
-
-    let notes_in_octave = 12.; // sounds like an oxymoron :)
-
     let a = &[12, 10, 20];
     let b = &[6, 12, 20];
     let c = &[6, 8, 10];
@@ -68,24 +68,54 @@ fn main() {
         &[20 / 5, 30 / 7, 10],
     ];
 
-    let dur = songlen / fraxss.len() as f64;
-    for (i, fraxs) in fraxss.iter().enumerate() {
-        let time = map(i as f64, 0.0, fraxss.len() as f64, 0.0, songlen - 0.1 - dur);
-        for frac in *fraxs {
-            let note = Note {
-                time,
-                dur,
-                attack_end,
-                decay_start,
-                freq: base_freq * (notes_in_octave / *frac as f64),
-                amp: 0.2,
-                timbre: note::cray(note::sin, |s, t| {
-                    let base = ((t / 8.).sin() + 2.) * 2.;
-                    let a = s.abs().powf(base);
-                    a * s.signum()
-                }),
-            };
-            song.add_note(note);
+    // let mut rng = rand::rngs::SmallRng::from_seed([0xff; 32]);
+
+    let section_len = 20.;
+    let sections = 32;
+    let songlen = section_len * sections as f64;
+    let mut song = Song::new(songlen);
+
+    for section in 0..sections {
+        let attack_end = 0.01;
+        let decay_start = 0.99;
+        let base_freq = 261.0;
+
+        let notes_in_octave = 12.; // sounds like an oxymoron :)
+
+        // let fraxend: usize = (rng.gen::<usize>() % fraxss.len()).max(1);
+        // let fraxstart: usize = (rng.gen::<usize>() % fraxend).min(fraxend - 1);
+        let fraxend: usize = fraxss.len();
+        let fraxstart: usize = 0;
+        let fraxss = &fraxss[fraxstart..fraxend];
+
+        let sectionstart = section as f64 * section_len;
+        let dur = section_len / fraxss.len() as f64;
+        let sectionend = (section + 1) as f64 * section_len - dur;
+        for (i, fraxs) in fraxss.iter().enumerate() {
+            let time = map(
+                i as f64,
+                0.0,
+                fraxss.len() as f64 - 1.,
+                sectionstart,
+                sectionend - 0.00001,
+            );
+            dbg!(time / songlen);
+            for frac in *fraxs {
+                let note = Note {
+                    time,
+                    dur,
+                    attack_end,
+                    decay_start,
+                    freq: base_freq * (notes_in_octave / *frac as f64),
+                    amp: 0.2,
+                    timbre: note::cray(note::sin, |s, t| {
+                        let base = ((t / 8.).sin() + 2.) * 2.;
+                        let a = s.abs().powf(base);
+                        a * s.signum()
+                    }),
+                };
+                song.add_note(note);
+            }
         }
     }
 
