@@ -1,3 +1,7 @@
+use crate::map;
+use crate::song::Effect;
+use crate::util::lin;
+
 pub struct Note<T> {
     pub time: f64,
     pub dur: f64,
@@ -6,6 +10,19 @@ pub struct Note<T> {
     pub freq: f64,
     pub amp: f64, // in range (0.0, 1.0)
     pub timbre: T,
+}
+
+impl<T: Fn(f64) -> f64> Effect for Note<T> {
+    fn effect(&self, t: f64, sample: &mut f64) {
+        let attack_amp = map(t, self.time, self.attack_end, 0.0, 1.0);
+        let sustain_amp = map(t, self.decay_start, self.time + self.dur, 1.0, 0.0);
+        let envelope_amp = attack_amp.min(sustain_amp).max(0.0).min(1.0);
+        *sample += (self.timbre)(t * self.freq) * envelope_amp * self.amp;
+    }
+
+    fn range_hint(&self) -> Option<(f64, f64)> {
+        Some((self.time, self.time + self.dur))
+    }
 }
 
 pub fn saw(t: f64) -> f64 {
