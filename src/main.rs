@@ -1,10 +1,13 @@
+mod effect;
 mod note;
 mod song;
+mod timbre;
 mod util;
 
-use crate::util::map;
-use note::Note;
+use crate::effect::EffectExt;
+use effect::HyperBolicTangent;
 use song::Song;
+use util::map;
 
 fn main() {
     let fraxss: Vec<Vec<usize>> = (3..8usize).map(|i| vec![i.pow(2)]).collect();
@@ -18,20 +21,18 @@ fn main() {
         let time = i as f64 * dur;
 
         for c in chord.iter() {
-            let freq = base_freq * (notes_in_octave / *c as f64);
-            let note = Note {
+            let freq = base_freq * (notes_in_octave / *c as f64) / 2.;
+            let nowet = effect::harmonics(timbre::sin.freq(freq).amp(0.1)).envelope(
                 time,
                 dur,
-                attack_end: time + dur / 2.,
-                decay_start: time + dur / 2.,
-                freq,
-                amp: 0.2,
-                timbre: note::cral,
-            };
-            song.add_effect(note);
+                time + dur / 2.,
+                time + dur / 2.,
+            );
+            song.add_effect(nowet);
         }
     }
-    
+
+    song.add_effect(HyperBolicTangent);
     song.dump();
 
     #[cfg(feature = "plotters")]

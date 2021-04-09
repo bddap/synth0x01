@@ -1,10 +1,3 @@
-/// a linear function of x intersecting the provided points
-pub fn lin(x1: f64, y1: f64, x2: f64, y2: f64, x: f64) -> f64 {
-    let slope = (y2 - y1) / (x2 - x1);
-    let yintercept = y1 - slope * x1;
-    x * slope + yintercept
-}
-
 /// transforms a number x from range (inmin, inmax) to range (outmin, outmax).
 pub fn map(x: f64, inmin: f64, inmax: f64, outmin: f64, outmax: f64) -> f64 {
     (x - inmin) / (inmax - inmin) * (outmax - outmin) + outmin
@@ -55,4 +48,24 @@ fn tmap() {
     ] {
         assert_eq!(map(*x, *inmin, *inmax, *outmin, *outmax), *out);
     }
+}
+
+pub fn fmax(mut fs: impl Iterator<Item = f64>) -> Option<f64> {
+    let mut ret = fs.next()?;
+    for f in fs {
+        if ret < f {
+            ret = f;
+        }
+    }
+    Some(ret)
+}
+
+pub fn fmin(mut fs: impl Iterator<Item = f64>) -> Option<f64> {
+    let mut ret = fs.next()?;
+    for f in fs {
+        if ret > f {
+            ret = f;
+        }
+    }
+    Some(ret)
 }
