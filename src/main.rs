@@ -13,7 +13,7 @@ use song::Song;
 use util::map;
 
 fn char_to_fra(c: char) -> usize {
-    (c as u32 as usize) % 24
+    (c as u32 as usize) % 12 + 1
 }
 
 fn to_chord(word: &str) -> Vec<usize> {
@@ -21,34 +21,30 @@ fn to_chord(word: &str) -> Vec<usize> {
 }
 
 fn to_chords(words: &str) -> Vec<Vec<usize>> {
-    words.split('\n').map(to_chord).collect()
+    words.split(' ').map(to_chord).collect()
 }
 
 fn main() {
     let seed: usize = 2;
     let mut rg = SmallRng::seed_from_u64(seed as u64);
 
-    let seedword = "hello there my friend boy ol pal";
-    let ofx: Vec<Vec<usize>> = to_chords(seedword);
-
-    let fraxss: Vec<Vec<usize>> = (0..1024)
-        .map(|i| {
-            ofx.iter()
-                .map(|chord| chord[i % chord.len()])
-                .filter(|_| rg.gen::<f32>() < 0.5)
-                .collect()
-        })
-        .collect();
+    let seedword = "Happy mothers day";
+    // let seedword = "let the party be starting";
+    let fraxss: Vec<Vec<usize>> = to_chords(seedword);
+    dbg!(&fraxss);
 
     let dur = 1. / 4.;
     let base_freq = 261.0;
     let notes_in_octave = 12.;
     let mut song = Song::default();
 
-    for (i, chord) in fraxss.iter().cycle().take(1024).enumerate() {
+    for (i, chord) in fraxss.iter().cycle().take(128).enumerate() {
         let time = i as f64 * dur;
 
         for c in chord.iter() {
+            if rg.gen::<f32>() < 0.4 {
+                break;
+            }
             let freq = base_freq * (notes_in_octave / *c as f64) / 2.;
             let nowet = timbre::cral
                 .freq(freq)
