@@ -6,38 +6,36 @@ mod util;
 
 use crate::effect::EffectExt;
 use effect::HyperbolicTangent;
-use rand::random;
 use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::SeedableRng;
 use song::Song;
 use util::map;
 
-fn main() {
-    // let seed: usize = random();
-    let seed: usize = 1;
-    let mut rg = SmallRng::seed_from_u64(seed as u64);
-    // let fraxss: Vec<Vec<usize>> = [rg.gen::<usize>() % 5 + 1]
-    //     .iter()
-    //     .cycle()
-    //     .take(1)
-    //     .map(|i| (0..=*i).map(|_| rg.gen::<usize>() % 12 + 1).collect())
-    //     .collect();
-    // dbg!(seed);
-    // dbg!(&fraxss);
+fn char_to_fra(c: char) -> usize {
+    (c as u32 as usize) % 24
+}
 
-    let ofx = vec![
-        vec![1, 3, 2],
-        vec![6, 11],
-        vec![6, 5, 4, 1],
-        vec![5, 3, 8, 12, 10],
-        vec![9, 6, 8],
-    ];
+fn to_chord(word: &str) -> Vec<usize> {
+    word.chars().map(char_to_fra).collect()
+}
+
+fn to_chords(words: &str) -> Vec<Vec<usize>> {
+    words.split('\n').map(to_chord).collect()
+}
+
+fn main() {
+    let seed: usize = 2;
+    let mut rg = SmallRng::seed_from_u64(seed as u64);
+
+    let seedword = "hello there my friend boy ol pal";
+    let ofx: Vec<Vec<usize>> = to_chords(seedword);
+
     let fraxss: Vec<Vec<usize>> = (0..1024)
         .map(|i| {
             ofx.iter()
                 .map(|chord| chord[i % chord.len()])
-                .filter(|_| rg.gen::<f32>() < 0.3)
+                .filter(|_| rg.gen::<f32>() < 0.5)
                 .collect()
         })
         .collect();
@@ -52,12 +50,10 @@ fn main() {
 
         for c in chord.iter() {
             let freq = base_freq * (notes_in_octave / *c as f64) / 2.;
-            let nowet = timbre::cral.freq(freq).amp(0.1).envelope(
-                time,
-                dur,
-                time + dur / 2.,
-                time + dur / 2.,
-            );
+            let nowet = timbre::cral
+                .freq(freq)
+                .amp(map(*c as f64, 23.0, 0., 0.5, 0.1))
+                .envelope(time, dur, time + dur / 2., time + dur / 2.);
             song.add_effect(nowet);
         }
     }
