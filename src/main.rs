@@ -5,12 +5,42 @@ mod timbre;
 mod util;
 
 use crate::effect::EffectExt;
-use effect::HyperBolicTangent;
+use effect::HyperbolicTangent;
+use rand::random;
+use rand::rngs::SmallRng;
+use rand::Rng;
+use rand::SeedableRng;
 use song::Song;
 use util::map;
 
 fn main() {
-    let fraxss: Vec<Vec<usize>> = (3..8usize).map(|i| vec![i.pow(2)]).collect();
+    // let seed: usize = random();
+    let seed: usize = 1;
+    let mut rg = SmallRng::seed_from_u64(seed as u64);
+    // let fraxss: Vec<Vec<usize>> = [rg.gen::<usize>() % 5 + 1]
+    //     .iter()
+    //     .cycle()
+    //     .take(1)
+    //     .map(|i| (0..=*i).map(|_| rg.gen::<usize>() % 12 + 1).collect())
+    //     .collect();
+    // dbg!(seed);
+    // dbg!(&fraxss);
+
+    let ofx = vec![
+        vec![1, 3, 2],
+        vec![6, 11],
+        vec![6, 5, 4, 1],
+        vec![5, 3, 8, 12, 10],
+        vec![9, 6, 8],
+    ];
+    let fraxss: Vec<Vec<usize>> = (0..1024)
+        .map(|i| {
+            ofx.iter()
+                .map(|chord| chord[i % chord.len()])
+                .filter(|_| rg.gen::<f32>() < 0.3)
+                .collect()
+        })
+        .collect();
 
     let dur = 1. / 4.;
     let base_freq = 261.0;
@@ -22,7 +52,7 @@ fn main() {
 
         for c in chord.iter() {
             let freq = base_freq * (notes_in_octave / *c as f64) / 2.;
-            let nowet = effect::harmonics(timbre::sin.freq(freq).amp(0.1)).envelope(
+            let nowet = timbre::cral.freq(freq).amp(0.1).envelope(
                 time,
                 dur,
                 time + dur / 2.,
@@ -32,7 +62,7 @@ fn main() {
         }
     }
 
-    song.add_effect(HyperBolicTangent);
+    song.add_effect(HyperbolicTangent);
     song.dump();
 
     #[cfg(feature = "plotters")]

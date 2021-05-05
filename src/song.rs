@@ -29,6 +29,7 @@ impl Song {
             }
         }
         samples.iter().for_each(|s| {
+            assert!(!s.is_nan(), "NaN!");
             assert!(*s <= 1.0, "clipping!");
             assert!(*s >= -1.0, "clipping!");
         });

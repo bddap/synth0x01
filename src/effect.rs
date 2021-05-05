@@ -160,9 +160,10 @@ pub fn harmonics<T: Effect + Clone>(effect: T) -> [impl Effect; 9] {
     ]
 }
 
-pub struct HyperBolicTangent;
+// handy for preventing clipping
+pub struct HyperbolicTangent;
 
-impl Effect for HyperBolicTangent {
+impl Effect for HyperbolicTangent {
     fn effect(&self, _t: f64, sample: &mut f64) {
         *sample = sample.tanh();
     }
