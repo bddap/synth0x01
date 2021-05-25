@@ -49,23 +49,3 @@ fn tmap() {
         assert_eq!(map(*x, *inmin, *inmax, *outmin, *outmax), *out);
     }
 }
-
-pub fn fmax(mut fs: impl Iterator<Item = f64>) -> Option<f64> {
-    let mut ret = fs.next()?;
-    for f in fs {
-        if ret < f {
-            ret = f;
-        }
-    }
-    Some(ret)
-}
-
-pub fn fmin(mut fs: impl Iterator<Item = f64>) -> Option<f64> {
-    let mut ret = fs.next()?;
-    for f in fs {
-        if ret > f {
-            ret = f;
-        }
-    }
-    Some(ret)
-}

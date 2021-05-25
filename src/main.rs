@@ -1,10 +1,9 @@
 mod effect;
-mod note;
 mod song;
 mod timbre;
 mod util;
 
-use crate::effect::EffectExt;
+use crate::effect::{EffectExt, PureEffectExt};
 use effect::HyperbolicTangent;
 use rand::rngs::SmallRng;
 use rand::Rng;

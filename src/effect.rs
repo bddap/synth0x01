@@ -1,64 +1,58 @@
 use crate::map;
-use crate::util::fmax;
-use crate::util::fmin;
 
+// a transformation over samples
 pub trait Effect {
-    fn effect(&self, t: f64, sample: &mut f64);
-
-    // Optional start and stop of the effect.
-    fn range_hint(&self) -> Option<(f64, f64)> {
+    fn apply(&self, samples: &mut [f64], sample_rate: usize);
+    fn end_hint(&self) -> Option<f64> {
         None
-    }
-
-    // apply self to song
-    fn effects(&self, samples: &mut [f64], sample_rate: usize) {
-        let (start, end) = self
-            .range_hint()
-            .unwrap_or((0.0, samples.len() as f64 / sample_rate as f64));
-        let sample_start = (sample_rate as f64 * start) as usize;
-        let sample_end = (sample_rate as f64 * end) as usize;
-        for i in sample_start..sample_end {
-            let t = i as f64 / sample_rate as f64;
-            self.effect(t, &mut samples[i]);
-        }
     }
 }
 
 pub trait EffectExt: Effect + Sized {
-    fn freq(self, freq: f64) -> Freq<Self> {
-        Freq { effect: self, freq }
-    }
-
     fn envelope(self, start: f64, dur: f64, attack_end: f64, decay_start: f64) -> Envelope<Self> {
         Envelope::new(self, start, dur, attack_end, decay_start)
-    }
-
-    fn amp(self, amp: f64) -> Amp<Self> {
-        Amp { effect: self, amp }
-    }
-}
-
-impl<F: Fn(f64) -> f64> Effect for F {
-    fn effect(&self, t: f64, sample: &mut f64) {
-        *sample += (self)(t);
     }
 }
 
 impl<T: Effect> EffectExt for T {}
 
-impl<T: Effect, const N: usize> Effect for [T; N] {
-    fn effect(&self, t: f64, sample: &mut f64) {
-        for e in self {
-            e.effect(t, sample);
-        }
+// a function from time to sample
+pub trait PureEffect {
+    fn sample_at(&self, time: f64) -> f64;
+}
+
+pub trait PureEffectExt: PureEffect + Sized {
+    fn amp(self, freq: f64) -> Freq<Self> {
+        Freq { effect: self, freq }
     }
 
-    // Optional start and stop of the effect.
-    fn range_hint(&self) -> Option<(f64, f64)> {
-        let ranges = self.iter().filter_map(|e| e.range_hint());
-        let max = fmax(ranges.clone().map(|(_min, max)| max))?;
-        let min = fmin(ranges.clone().map(|(min, _max)| min))?;
-        Some((min, max))
+    fn freq(self, freq: f64) -> Freq<Self> {
+        Freq { effect: self, freq }
+    }
+}
+
+impl<T: PureEffect> PureEffectExt for T {}
+
+impl<T: PureEffect> Effect for T {
+    fn apply(&self, samples: &mut [f64], sample_rate: usize) {
+        for (i, sample) in samples.iter_mut().enumerate() {
+            let t = i as f64 / sample_rate as f64;
+            *sample += self.sample_at(t);
+        }
+    }
+}
+
+impl<F: Fn(f64) -> f64> PureEffect for F {
+    fn sample_at(&self, time: f64) -> f64 {
+        (self)(time)
+    }
+}
+
+impl<T: Effect, const N: usize> Effect for [T; N] {
+    fn apply(&self, samples: &mut [f64], sample_rate: usize) {
+        for a in self {
+            a.apply(samples, sample_rate);
+        }
     }
 }
 
@@ -68,14 +62,9 @@ pub struct Freq<T> {
     freq: f64,
 }
 
-impl<T: Effect> Effect for Freq<T> {
-    fn effect(&self, t: f64, sample: &mut f64) {
-        self.effect.effect(t * self.freq, sample);
-    }
-
-    fn range_hint(&self) -> Option<(f64, f64)> {
-        // range is not effected by shift, only pitch
-        self.effect.range_hint()
+impl<T: PureEffect> PureEffect for Freq<T> {
+    fn sample_at(&self, time: f64) -> f64 {
+        self.effect.sample_at(time * self.freq)
     }
 }
 
@@ -85,15 +74,9 @@ pub struct Amp<T> {
     amp: f64,
 }
 
-impl<T: Effect> Effect for Amp<T> {
-    fn effect(&self, t: f64, sample: &mut f64) {
-        let mut s2 = 0.0;
-        self.effect.effect(t, &mut s2);
-        *sample += s2 * self.amp;
-    }
-
-    fn range_hint(&self) -> Option<(f64, f64)> {
-        self.effect.range_hint()
+impl<T: PureEffect> PureEffect for Amp<T> {
+    fn sample_at(&self, time: f64) -> f64 {
+        self.effect.sample_at(time) * self.amp
     }
 }
 
@@ -112,10 +95,6 @@ impl<T: Effect> Envelope<T> {
         assert!(attack_end <= start + dur);
         assert!(decay_start >= start);
         assert!(decay_start <= start + dur);
-        if let Some((min, max)) = effect.range_hint() {
-            assert!(min <= start);
-            assert!(max >= start + dur);
-        }
         Self {
             effect,
             start,
@@ -126,27 +105,27 @@ impl<T: Effect> Envelope<T> {
     }
 }
 
-impl<T: Effect> Effect for Envelope<T> {
-    fn effect(&self, t: f64, sample: &mut f64) {
-        let attack_amp = map(t, self.start, self.attack_end, 0.0, 1.0);
-        let sustain_amp = map(t, self.decay_start, self.start + self.dur, 1.0, 0.0);
-        let envelope_amp = attack_amp.min(sustain_amp).max(0.0).min(1.0);
-        let mut s2 = 0.0;
-        self.effect.effect(t, &mut s2);
-        *sample += s2 * envelope_amp;
+impl<T: PureEffect> Effect for Envelope<T> {
+    fn apply(&self, samples: &mut [f64], sample_rate: usize) {
+        let start_idx = (sample_rate as f64 * self.start) as usize;
+        let stop_idx = (sample_rate as f64 * (self.start + self.dur)) as usize;
+        let len = samples.len();
+        let effected = &mut samples[start_idx.min(len)..stop_idx.min(len)];
+        (|t| {
+            let attack_amp = map(t, 0.0, self.attack_end - self.start, 0.0, 1.0);
+            let sustain_amp = map(t, self.decay_start - self.start, self.dur, 1.0, 0.0);
+            let envelope_amp = attack_amp.min(sustain_amp).max(0.0).min(1.0);
+            self.effect.sample_at(t) * envelope_amp
+        })
+        .apply(effected, sample_rate);
     }
 
-    fn range_hint(&self) -> Option<(f64, f64)> {
-        let ret = if let Some((min, max)) = self.effect.range_hint() {
-            (min.max(self.start), max.min(self.start + self.dur))
-        } else {
-            (self.start, self.start + self.dur)
-        };
-        Some(ret)
+    fn end_hint(&self) -> Option<f64> {
+        Some(self.start + self.dur)
     }
 }
 
-pub fn harmonics<T: Effect + Clone>(effect: T) -> [impl Effect; 9] {
+pub fn harmonics<T: PureEffect + Clone>(effect: T) -> [impl Effect; 9] {
     [
         effect.clone().freq(1. / 16.),
         effect.clone().freq(1. / 8.),
@@ -164,11 +143,44 @@ pub fn harmonics<T: Effect + Clone>(effect: T) -> [impl Effect; 9] {
 pub struct HyperbolicTangent;
 
 impl Effect for HyperbolicTangent {
-    fn effect(&self, _t: f64, sample: &mut f64) {
-        *sample = sample.tanh();
+    fn apply(&self, samples: &mut [f64], _sample_rate: usize) {
+        for s in samples {
+            *s = s.tanh();
+        }
     }
+}
 
-    fn range_hint(&self) -> Option<(f64, f64)> {
-        None
+pub struct Integral;
+
+impl Effect for Integral {
+    fn apply(&self, samples: &mut [f64], _sample_rate: usize) {
+        let mut integrated: f64 = 0.0;
+        for sample in samples {
+            integrated += *sample;
+            *sample = integrated;
+        }
+    }
+}
+
+pub struct Derivative;
+
+impl Effect for Derivative {
+    fn apply(&self, samples: &mut [f64], _sample_rate: usize) {
+        let mut prev = 0.0;
+        for sample in samples {
+            let next = *sample - prev;
+            prev = *sample;
+            *sample = next;
+        }
+    }
+}
+
+pub struct Volume(pub f64);
+
+impl Effect for Volume {
+    fn apply(&self, samples: &mut [f64], _sample_rate: usize) {
+        for sample in samples {
+            *sample *= self.0;
+        }
     }
 }

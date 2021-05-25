@@ -1,5 +1,4 @@
 use crate::effect::Effect;
-use crate::util::fmax;
 use std::io::Write;
 
 #[derive(Default)]
@@ -14,19 +13,17 @@ impl Song {
 
     /// dump audio data to stdout as wav
     pub fn dump(&self) {
-        let ranges = self.transforms.iter().filter_map(|tr| tr.range_hint());
-        let duration = fmax(ranges.map(|r| r.1)).expect("can't determine song length");
+        let duration = self
+            .transforms
+            .iter()
+            .filter_map(|tr| tr.end_hint())
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .expect("can't determine song length");
         let sample_rate = 44_100; // cd quality
         let num_samples = (duration * sample_rate as f64) as usize;
         let mut samples = vec![0.0; num_samples];
         for transform in &self.transforms {
-            let (start, end) = transform.range_hint().unwrap_or((0.0, duration));
-            let sample_start = (sample_rate as f64 * start) as usize;
-            let sample_end = (sample_rate as f64 * end) as usize;
-            for i in sample_start..sample_end {
-                let t = i as f64 / sample_rate as f64;
-                transform.effect(t, &mut samples[i]);
-            }
+            transform.apply(&mut samples, sample_rate);
         }
         samples.iter().for_each(|s| {
             assert!(!s.is_nan(), "NaN!");
